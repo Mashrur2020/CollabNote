@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:16
+    container_name: colabnote_db
+    restart: always  # Added: ensures the DB restarts if it crashes
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=colabnote  # Changed to lowercase for sanity
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_colabnote:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d colabnote"]
+      interval: 10s   # Increased slightly: 5s can be aggressive on slow disks
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:7
+    container_name: colabnote_mongodb
+    restart: always
+    environment:
+      - MONGO_INITDB_DATABASE=colabnote
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata_colabnote:/data/db
+ 
+
+  elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: colabnote_es
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata_colabnote:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q 'status.*green\\|yellow'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+volumes:
+  pgdata_colabnote: {}
+  mongodata_colabnote: {}
+  esdata_colabnote: {}
+
