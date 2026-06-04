@@ -11,8 +11,9 @@ from ..auth import (
     create_access_token,
     decode_access_token
 )
+from app.events import log_user_signup, log_user_login
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/signup", response_model=UserOut, status_code=201)
@@ -32,11 +33,14 @@ def signup(user_data: UserCreate, db: Session = Depends(get_db)):
     new_user = User(
         email=user_data.email,
         username=user_data.username,
-        password_hash=hash_password(user_data.password)  # Use password_hash (matches models.py)
+        password_hash=hash_password(user_data.password)
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    # Fire Kafka event (non-blocking)
+    log_user_signup(new_user.id, new_user.email)
     
     return new_user
 
@@ -57,5 +61,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     
     # Create and return JWT token
     access_token = create_access_token(data={"sub": user.email})
+
+    # Fire Kafka event (non-blocking)
+    log_user_login(user.id, user.email)
     
     return {"access_token": access_token, "token_type": "bearer"}

@@ -58,18 +58,24 @@ class TokenData(BaseModel):
 class NoteBase(BaseModel):
     title: str
     content: str
+    tags: list[str] = []
+
 
 class NoteCreate(NoteBase):
     pass
 
+
 class NoteUpdate(BaseModel):
     title: Optional[str] = None
     content: Optional[str] = None
+    tags: Optional[list[str]] = None
+
 
 class NoteOut(BaseModel):
     id: str
     title: str
     content: str
     user_email: str
+    tags: list[str] = []
     created_at: datetime
     updated_at: Optional[datetime] = None

@@ -1,28 +1,25 @@
-# Environment
-.env
-.env.local
-.env.*.local
-
-# Virtual environment
+# Python
+__pycache__/
+*.py[cod]
 .venv/
 venv/
-__pycache__/
-
-# Python
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-.puku
+.env
 
 # IDE
 .vscode/
 .idea/
 
-# Database
-*.db
-*.sqlite
+.API.md
 
-# Logs
+# OS
+.DS_Store
+Thumbs.db
+
+# Project artefacts
 *.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+node_modules/

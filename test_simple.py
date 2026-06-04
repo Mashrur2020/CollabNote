@@ -42,7 +42,7 @@ def test_ping(client):
 
 def test_signup(client):
     """Test user signup"""
-    response = client.post("/auth/signup", json={
+    response = client.post("/api/auth/signup", json={
         "email": "test@example.com",
         "username": "testuser",
         "password": "testpassword123"
@@ -57,14 +57,14 @@ def test_signup(client):
 def test_login(client):
     """Test user login"""
     # First signup
-    client.post("/auth/signup", json={
+    client.post("/api/auth/signup", json={
         "email": "login@example.com",
         "username": "loginuser",  # Note: login uses username, not email
         "password": "testpassword123"
     })
     
     # Then login - use USERNAME field, not email
-    response = client.post("/auth/login", data={
+    response = client.post("/api/auth/login", data={
         "username": "loginuser",  # Must match the username from signup
         "password": "testpassword123"
     })
@@ -75,13 +75,13 @@ def test_login(client):
 def test_profile_with_token(client):
     """Test profile endpoint with valid token"""
     # Signup and login
-    client.post("/auth/signup", json={
+    client.post("/api/auth/signup", json={
         "email": "profile@example.com",
         "username": "profileuser",
         "password": "testpassword123"
     })
     
-    login_response = client.post("/auth/login", data={
+    login_response = client.post("/api/auth/login", data={
         "username": "profileuser",  # Must match the username from signup
         "password": "testpassword123"
     })
@@ -105,13 +105,13 @@ def test_profile_without_token(client):
 def test_get_users(client):
     """Test get users endpoint"""
     # Signup and login
-    client.post("/auth/signup", json={
+    client.post("/api/auth/signup", json={
         "email": "users@example.com",
         "username": "usersuser",
         "password": "testpassword123"
     })
     
-    login_response = client.post("/auth/login", data={
+    login_response = client.post("/api/auth/login", data={
         "username": "usersuser",  # Must match the username from signup
         "password": "testpassword123"
     })
