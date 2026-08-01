@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from sqlalchemy.orm import Session
 
-from .database import SessionLocal
+from .database import SessionLocal, get_db
 from .models import User
 from .schemas import UserOut, NoteOut
 from .auth import decode_access_token
@@ -83,15 +83,7 @@ app.include_router(activity_router, prefix="/api/activity", tags=["activity"])
 graphql_router = GraphQLRouter(schema, context_getter=get_context)
 app.include_router(graphql_router, prefix="/graphql")
 
-security = HTTPBearer()
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+security = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
@@ -104,6 +96,9 @@ def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    if credentials is None:
+        raise credentials_exception
 
     token = credentials.credentials
 

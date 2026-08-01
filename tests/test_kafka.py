@@ -4,6 +4,7 @@ These tests use the full app with mocked Kafka broker and cache.
 They verify that events are published correctly through the event system.
 """
 import pytest
+import pytest_asyncio
 from unittest.mock import patch, AsyncMock
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import create_engine
@@ -34,8 +35,8 @@ def db_session():
         Base.metadata.drop_all(bind=engine)
 
 
-@pytest.fixture
-def client(db_session):
+@pytest_asyncio.fixture
+async def client(db_session):
     """Override the get_db dependency with our test session."""
 
     def _get_db_override():
@@ -43,7 +44,7 @@ def client(db_session):
 
     app.dependency_overrides[get_db] = _get_db_override
     transport = ASGITransport(app=app)
-    with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
 

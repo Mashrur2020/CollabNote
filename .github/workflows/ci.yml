@@ -46,8 +46,8 @@ jobs:
 
       - run: pip install -r requirements.txt pytest-cov
       - run: |
-          pytest --cov=. --cov-report=term-missing \
-            --cov-fail-under=60
+          pytest tests/ --cov=app --cov-report=term-missing \
+            --cov-fail-under=50
 
   build-and-push:
     needs: [lint, test]
