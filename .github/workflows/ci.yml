@@ -46,10 +46,12 @@ jobs:
         ports:
           - 9200:9200
         options: >-
+          --sysctl vm.max_map_count=262144
           --health-cmd "curl -s http://localhost:9200/_cluster/health"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
+          --health-start-period 60s
     steps:
       - uses: actions/checkout@v4
 
