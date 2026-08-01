@@ -21,7 +21,7 @@ from app.events import (
 )
 from app.mongodb import async_db
 from app.redis_client import redis_client
-from app.schemas import NoteCreate, NoteOut, NoteUpdate
+from app.schemas import NoteCreate, NoteOut, NoteUpdate, SearchResults
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ async def get_notes(email: str = Depends(get_current_user_email)):
     return [_note_doc_to_out(doc) for doc in docs]
 
 
-@router.get("/search/", response_model=list[NoteOut])
+@router.get("/search/", response_model=SearchResults)
 async def search_notes(
     q: str = "",
     background: BackgroundTasks = BackgroundTasks(),
@@ -113,21 +113,21 @@ async def search_notes(
 ):
     """Search notes for the authenticated user via Elasticsearch."""
     if not q:
-        return []
+        return SearchResults(total=0, results=[])
 
     user_id = _user_id_from_email(email)
 
     try:
-        results = await elasticsearch_client.search_notes(q, email)
-        hits = results.get("results", []) if isinstance(results, dict) else results
+        result = await elasticsearch_client.search_notes(q, email)
+        hits = result.get("results", []) if isinstance(result, dict) else []
 
         background.add_task(redis_client.set_search_results, user_id, q, hits)
         log_note_searched(user_id, q, len(hits))
 
-        return hits
+        return SearchResults(total=result.get("total", 0), results=hits)
     except Exception as e:
         logger.warning("Search failed: %s", e)
-        return []
+        return SearchResults(total=0, results=[])
 
 
 @router.get("/{note_id}", response_model=NoteOut)

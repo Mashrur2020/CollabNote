@@ -135,7 +135,7 @@ async def search_notes(query: str, user_email: str, limit: int = 10):
         
         hits = []
         for hit in result["hits"]["hits"]:
-            item = {"note_id": hit["_id"], "score": hit["_score"], **hit["_source"]}
+            item = {"id": hit["_id"], "score": hit["_score"], **hit["_source"]}
             if "highlight" in hit:
                 item["highlight"] = hit["highlight"]
             hits.append(item)

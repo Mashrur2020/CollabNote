@@ -1,0 +1,35 @@
+# Venv + caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Git + IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Local config
+.env
+.env.*
+!.env.example
+
+# Tests (not needed in image)
+tests/
+
+# Nginx config dir (only used by the nginx container, not the API)
+nginx/
+
+# Build artefacts
+dist/
+build/
+*.egg-info/
+
+# OS noise
+.DS_Store
+Thumbs.db

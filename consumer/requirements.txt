@@ -1,4 +1,4 @@
 # consumer/requirements.txt
-aiokafka==0.10.0
+aiokafka==0.11.0
 motor>=3.5,<4
 pymongo>=4.9,<5

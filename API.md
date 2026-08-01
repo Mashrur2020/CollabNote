@@ -83,7 +83,7 @@ Legend: **Auth** = bearer JWT required · **Kafka** = publishes an event · **St
 | PUT    | `/api/notes/{note_id}`     | yes  | JSON partial `{title?, content?}` (`NoteUpdate`)   | `NoteOut`       | Mongo | —     |
 | DELETE | `/api/notes/{note_id}`     | yes  | path `note_id`                                     | `{message}` 404 if missing | Mongo | — |
 
-> The `notes` router decodes the JWT itself (`get_current_user_email` in-module) and uses `email` to scope every query. **Create / update / delete do not currently publish Kafka events or touch Elasticsearch / Redis** — the helpers exist in `app/events.py` but are not called from these routes.
+> The `notes` router decodes the JWT itself (`get_current_user_email` in-module) and uses `email` to scope every query. **Create / update / delete publish Kafka events, update Elasticsearch, and manage Redis cache** via `BackgroundTasks`.
 
 ### Activity (`/api/activity`, `app/routers/activity.py`)
 

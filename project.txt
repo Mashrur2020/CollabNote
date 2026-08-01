@@ -1,0 +1,1225 @@
+1. The Big Picture
+1.1 What Is CollabNote?
+CollabNote is a production-grade, collaborative notes API that students will design, build, and ship as
+the capstone of the FastAPI Basics episode. It is not a toy example - every architectural decision reflects
+patterns used in real-world systems at companies like Notion, Linear, and Confluence.
+
+At its core, CollabNote lets authenticated users create and manage rich-text notes, search across them
+instantly, track every action they take, and consume the same data through both a REST interface and
+
+a GraphQL interface. The entire stack runs behind an Nginx load balancer, is containerized with Docker
+Compose, and is deployed automatically through a GitHub Actions CI/CD pipeline.
+
+1.2 Why This Project?
+Each lab in the FastAPI Basics series taught one isolated skill. CollabNote forces students to combine
+every skill into a coherent system and make real architectural choices:
+•
+
+Where does data live - PostgreSQL, MongoDB, or both?
+
+•
+
+What belongs in a cache, and when should it be invalidated?
+
+•
+
+Which actions warrant an asynchronous event stream versus a synchronous database write?
+
+•
+
+When does a client benefit from GraphQL over REST?
+
+These are the questions engineers answer every day. CollabNote provides a safe environment to
+answer them under realistic constraints.
+
+1.3 System Architecture Overview
+The finished system is composed of eight layers that students will build incrementally across five
+phases:
+
+Layer
+
+Technology
+
+Responsibility
+
+Client
+
+curl / Postman /
+
+Sends HTTP requests to the Nginx entry point
+
+Load Balancer
+
+Nginx
+
+Round-robin distributes traffic across two
+
+API Layer
+
+FastAPI (×2)
+
+Handles REST endpoints and the GraphQL
+
+Auth
+
+JWT + passlib (bcrypt)
+
+Issues and validates Bearer tokens; protects all
+
+Relational DB
+
+PostgreSQL +
+
+Stores user profiles and hashed passwords
+
+Document DB
+
+MongoDB + Motor
+
+Stores notes (title, content, tags) and activity
+
+Cache
+
+Redis
+
+Caches hot note reads; invalidated on every
+
+Search Engine
+
+Elasticsearch
+
+Indexes notes on creation; provides fuzzy full-
+
+Event Bus
+
+Kafka (KRaft)
+
+Receives action events from the API;
+
+CI/CD
+
+GitHub Actions
+
+Lints, tests, builds, and pushes Docker images
+
+Browser
+
+SQLAlchemy + Alembic
+
+FastAPI instances
+
+/graphql endpoint
+
+routes
+
+logs
+
+write
+
+text search
+
+background consumer writes to MongoDB
+
+on every main-branch push
+
+1.4 Key User Flows
+The following five flows cover the full lifecycle of the system and are used as acceptance criteria:
+1. User registers via POST /auth/signup → profile stored in PostgreSQL → Kafka publishes
+signup event → consumer logs it to MongoDB.
+
+2. Authenticated user creates a note via POST /notes → document stored in MongoDB → indexed
+in Elasticsearch → cache invalidated → Kafka publishes create_note event.
+
+3. User searches via GET /search?q=fastapi → Elasticsearch returns fuzzy-matched, ranked
+results with highlighted snippets.
+
+4. User reads a hot note via GET /notes/{id} → Redis cache hit returns data in < 2 ms; on cache
+miss, MongoDB is queried and result is cached.
+
+5. Frontend client sends a single GraphQL query to /graphql requesting user profile, notes list,
+and activity log simultaneously — no over-fetching.
+
+1.5 What Students Will Submit
+A single public GitHub repository containing:
+•
+
+One docker-compose.yml at the repository root that starts the entire stack (Postgres, Mongo,
+Redis, Kafka, Elasticsearch, Nginx, two FastAPI instances, and the Kafka consumer) with a
+single docker compose up command.
+
+•
+
+A working .github/workflows/ci.yml that lints (flake8), runs tests (pytest), builds the Docker
+
+•
+
+A README.md with setup instructions, environment variable documentation, and a brief
+
+•
+
+A Phase 0 Infrastructure Requirements Document (described in the next section).
+
+image, and pushes it to Docker Hub on every push to main.
+
+architectural decision log explaining at least three design choices.
+
+2. Phase 0 — Infrastructure Requirements Document
+2.1 Why Phase 0 Exists
+Running PostgreSQL, MongoDB, Redis, Kafka, Elasticsearch, Nginx, and two FastAPI instances
+
+simultaneously is resource-intensive. Elasticsearch alone requires a minimum of 512 MB of dedicated
+
+heap, and the full stack comfortably consumes 4–6 GB of RAM. Poridhi will provision a correctly-sized
+VM only after reviewing and approving each student's requirements document.
+
+⚠️ Students will NOT receive a Poridhi VM for this capstone until their Phase 0 document
+is submitted and approved. This is the mandatory first step.
+
+2.2 What the Requirements Document Must Contain
+The document must be submitted as a PDF or Markdown file named requirements.md (or
+
+requirements.pdf) in the root of the student's GitHub repository. It must address all five sections
+below:
+
+Section A — Service Inventory
+A table listing every service the student plans to run, the Docker image they will use, the port it will
+expose, and a one-sentence description of its role.
+Service
+
+Docker Image
+
+Port(s)
+
+Role
+
+(Example)
+
+postgres:16
+
+5432
+
+Relational store for user profiles
+
+(Example)
+
+mongo:7
+
+27017
+
+Document store for notes and logs
+
+(Example) Redis
+
+redis:7-alpine
+
+6379
+
+Cache layer for hot note reads
+
+(Example) Kafka
+
+confluentinc/cp-
+
+9092
+
+Event bus for activity streaming
+
+(Example)
+
+docker.elastic.co/...8.11.1
+
+9200
+
+Full-text search index
+
+PostgreSQL
+
+MongoDB
+
+Elasticsearch
+
+kafka:7.6.0
+
+(Example)
+
+custom build
+
+8001,
+
+Application layer
+
+(Example) Nginx
+
+nginx:1.25-alpine
+
+80
+
+Load balancer and reverse proxy
+
+(Example) Kafka
+
+custom build
+
+—
+
+Background event processor
+
+FastAPI (×2)
+
+Consumer
+
+8002
+
+Section B - Resource Estimate
+A best-estimate breakdown of RAM and CPU required by each service. Students must calculate this
+from their service inventory and derive a total. The total RAM figure is the primary input Poridhi uses
+to size the VM.
+
+Service
+
+Min RAM (MB)
+
+Min CPU (cores)
+
+Notes
+
+Elasticsearch
+
+512
+
+0.5
+
+-Xms256m -Xmx256m
+
+PostgreSQL
+
+128
+
+0.25
+
+shared_buffers default
+
+MongoDB
+
+128
+
+0.25
+
+WiredTiger cache can
+
+Kafka (KRaft)
+
+256
+
+0.25
+
+Single broker for
+
+Redis
+
+64
+
+0.1
+
+Append-only file mode
+
+FastAPI (×2)
+
+128
+
+0.25
+
+Per instance estimate
+
+Nginx
+
+32
+
+0.1
+
+Alpine image, minimal
+
+Kafka Consumer
+
+64
+
+0.1
+
+Single Python process
+
+OS + overhead
+
+512
+
+0.5
+
+Buffer for OS and
+
+TOTAL
+
+~1824 MB (~2 GB)
+
+~2.3 cores
+
+Request VM with 4
+
+JVM flags required
+
+is sufficient
+
+be capped
+
+dev/learning
+
+enabled
+
+footprint
+
+Docker daemon
+
+GB RAM / 4 vCPU
+
+Section C - Data Model Summary
+A brief description (prose or table) of every collection and table the student plans to create, the key
+fields, and which service owns that data. This helps reviewers verify the student understands the
+hybrid architecture before writing code.
+
+Section D - Endpoint Inventory
+A list of every REST endpoint and every GraphQL query/mutation the student plans to implement,
+
+grouped by phase. Students do not need to define request/response schemas at this stage - just the
+method, path, and one-line purpose.
+
+Section E - Architecture Decision Log (ADL)
+At least three short paragraphs, each following the format: context → decision → rationale. Examples:
+•
+
+Why notes are stored in MongoDB instead of PostgreSQL.
+
+•
+
+Why Redis TTL is set to one hour rather than indefinite.
+
+•
+
+Why the Kafka consumer runs as a separate process rather than a FastAPI background task.
+
+2.3 Approval Process
+Instructors review the submitted requirements document within 48 hours. Approval is granted when:
+6. The service inventory is complete and ports do not conflict.
+7. The resource estimate is realistic and the requested VM size is justified.
+8. The data model correctly separates relational from document data.
+9. The ADL shows genuine reasoning, not copy-pasted answers.
+
+✅ Once approved, Poridhi will provide access to the Lab VM with the appropriate
+specifications
+
+3. Phased Product Requirements Document
+The project is divided into five phases. Each phase builds directly on the previous. Students should
+commit after each phase is working end-to-end before advancing.
+
+📌 Rule: No phase is considered complete until docker compose up starts the full stack
+that phase introduces, all endpoints return correct responses, and all existing
+tests continue to pass.
+
+Phase 1 — Foundation: Auth, Users, and Notes
+Labs: 2 · 3 · 4 · 5
+Services: PostgreSQL · MongoDB · FastAPI
+Goal: A working authenticated API backed by two databases.
+
+Functional Requirements
+•
+
+POST /auth/signup — Accept email, username, password. Hash password with bcrypt. Store
+
+•
+
+POST /auth/login — Accept username and password via OAuth2 form data. Verify
+
+•
+
+GET /profile — Protected. Return the authenticated user's profile from PostgreSQL.
+
+•
+
+POST /notes — Protected. Accept title, content, tags. Store note document in MongoDB with
+
+•
+
+GET /notes — Protected. Return all notes belonging to the authenticated user from
+
+•
+
+GET /notes/{id} — Protected. Return a single note by MongoDB ObjectId.
+
+•
+
+PUT /notes/{id} — Protected. Update note fields. Only the note owner may update.
+
+•
+
+DELETE /notes/{id} — Protected. Delete note from MongoDB. Only the note owner may
+
+•
+
+GET /users/{user_id}/notes — Protected. Hybrid endpoint: verify user exists in PostgreSQL,
+
+user in PostgreSQL. Return UserOut (no password).
+credentials. Return JWT Bearer token.
+
+the authenticated user's ID. Return NoteOut.
+MongoDB.
+
+delete.
+
+then fetch all their notes from MongoDB.
+
+Data Models
+PostgreSQL — users table
+
+MongoDB — notes collection
+
+id (PK), email (unique), username (unique),
+
+_id (ObjectId), user_id (str), title, content, tags
+
+password_hash, created_at, is_active
+
+(array), created_at
+
+Alembic Migrations
+•
+
+Initial migration creates users table.
+
+•
+
+Second migration adds is_active column (demonstrates schema evolution).
+
+Docker Compose Services (Phase 1)
+•
+
+postgres — postgres:16
+
+•
+
+mongodb — mongo:7
+
+•
+
+api — FastAPI application (single instance at this stage)
+
+Acceptance Criteria
+10. docker compose up starts all three services without error.
+11. POST /auth/signup followed by POST /auth/login returns a valid JWT.
+12. POST /notes with a valid JWT creates a note retrievable by GET /notes/{id}.
+13. GET /users/{user_id}/notes returns the correct notes from MongoDB after verifying the user in
+PostgreSQL.
+
+14. pytest passes a minimum of six tests covering signup, login, note CRUD, and the hybrid
+endpoint.
+
+Phase 2 — Search and Caching
+Labs: 6 · 7
+Services added: Elasticsearch · Redis
+Goal: Sub-10ms search and cached hot note reads.
+
+Functional Requirements
+•
+
+Extend POST /notes: After writing to MongoDB, also index the note in Elasticsearch (title,
+
+•
+
+Extend PUT /notes/{id}: After updating MongoDB, re-index in Elasticsearch and delete the
+
+•
+
+Extend DELETE /notes/{id}: After deleting from MongoDB, remove from Elasticsearch and
+
+•
+
+GET /search?q={term} — Public or protected (student's choice). Execute a multi_match
+
+content, tags, created_at).
+Redis cache key note:{id}.
+delete Redis cache key.
+
+Elasticsearch query across title (boosted 3x) and content. Enable fuzziness: AUTO. Return
+results sorted by relevance score with highlighted snippets.
+
+•
+
+Extend GET /notes/{id}: Check Redis first (key note:{id}). On cache miss, query MongoDB,
+
+then write to Redis with TTL = 3600 s. On cache hit, return immediately with source header
+Cache: HIT.
+
+Configuration
+•
+
+vm.max_map_count must be set to 262144 before starting Elasticsearch (document this in
+
+•
+
+ES_JAVA_OPTS=-Xms256m -Xmx256m to keep Elasticsearch within the provisioned VM
+
+•
+
+Redis TTL is configurable via CACHE_TTL environment variable (default 3600).
+
+the README and in the docker-compose healthcheck start_period).
+limits.
+
+Cache Invalidation Rules
+Operation
+
+MongoDB
+
+Redis Action
+
+GET /notes/{id}
+
+Read
+
+Write to cache on miss
+
+PUT /notes/{id}
+
+Update
+
+DELETE cache key note:{id}
+
+DELETE /notes/{id}
+
+Delete
+
+DELETE cache key note:{id}
+
+POST /notes
+
+Insert
+
+No action (not cached until first
+GET)
+
+Docker Compose Services (Phase 2 additions)
+•
+
+elasticsearch — docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+
+•
+
+redis — redis:7-alpine with appendonly yes
+
+Acceptance Criteria
+15. Creating a note indexes it in Elasticsearch; DELETE /search verifies the document is
+removed after deletion.
+
+16. GET /search?q=fastapi returns relevant notes with highlighted terms. Searching for a
+common typo (e.g., fastpi) still returns results.
+
+17. Second consecutive GET /notes/{id} is served from Redis (confirm via logs or Cache: HIT
+header) and responds in under 5 ms locally
+
+18. Updating a note and then immediately fetching it returns the updated content (cache
+invalidated correctly).
+
+Phase 3 — Event Streaming with Kafka
+Lab: 8
+Services added: Kafka (KRaft) · Kafka Consumer
+Goal: Decouple activity logging from the request path.
+
+Functional Requirements
+•
+
+Configure an aiokafka AIOKafkaProducer in the FastAPI application that publishes to the
+
+•
+
+Publish an event to Kafka (non-blocking, fire-and-forget) on every one of the following actions:
+
+•
+
+Each event payload must contain: event_type, user_id, resource_id (where applicable),
+
+•
+
+Build a standalone Kafka consumer in consumer/consumer.py that reads from
+
+topic collabnote_events.
+
+user_signup, user_login, note_created, note_updated, note_deleted, note_searched.
+timestamp (ISO 8601), and a metadata dict.
+
+collabnote_events and writes each event as a document to the MongoDB activity_logs
+collection.
+
+•
+
+Expose GET /activity — Protected. Return the last 20 activity log entries for the authenticated
+user, sorted by timestamp descending, from MongoDB.
+
+Event Schema
+Field
+
+Type
+
+Example
+
+event_type
+
+string
+
+note_created
+
+user_id
+
+int
+
+42
+
+resource_id
+
+string | null
+
+507f1f77bcf86cd799439011
+
+timestamp
+
+ISO 8601 string
+
+2025-02-25T14:30:00Z
+
+metadata
+
+object
+
+{"title": "My Note", "tags": ["api"]}
+
+Architecture Note
+The Kafka consumer must run as a separate process (python -m consumer.consumer), not as a
+
+FastAPI background task. This is intentional: it demonstrates process-level decoupling and allows the
+consumer to be scaled independently of the API.
+
+Docker Compose Services (Phase 3 additions)
+•
+
+kafka — confluentinc/cp-kafka:7.6.0 in KRaft mode (no Zookeeper).
+
+•
+
+consumer — custom image built from consumer/Dockerfile, depends on kafka and mongodb.
+
+Acceptance Criteria
+19. POST /auth/login followed by GET /activity returns a log entry with event_type: user_login.
+20. Creating, updating, and deleting a note each produce exactly one corresponding event in the
+activity_logs collection.
+
+21. Stopping the consumer, performing several actions, restarting it with
+
+auto_offset_reset=earliest, and verifying all queued events are processed.
+
+22. API response time for POST /notes is not meaningfully affected by the Kafka publish
+operation (publish is non-blocking).
+
+Phase 4 — GraphQL Interface
+Lab: 11
+No new services — mounts onto existing FastAPI instance
+Goal: Expose the full data graph in a single /graphql endpoint.
+
+GraphQL Schema Requirements
+•
+
+Type User: id, username, email, createdAt, notes (resolver → MongoDB), activityLogs
+
+•
+
+Type Note: id, userId, title, content, tags, createdAt, author (resolver → PostgreSQL user).
+
+•
+
+Type ActivityLog: id, eventType, userId, resourceId, timestamp, metadata.
+
+(resolver → MongoDB activity_logs).
+
+Queries
+•
+
+me — Returns the authenticated user's profile (reads JWT from context).
+
+•
+
+user(id: ID!) — Returns a user by PostgreSQL ID.
+
+•
+
+users — Returns all users.
+
+•
+
+note(id: ID!) — Returns a single note by MongoDB ObjectId.
+
+•
+
+notes — Returns all notes for the authenticated user.
+
+Mutations
+•
+
+createNote(title: String!, content: String!, tags: [String!]!) — Creates a note (same logic as
+
+•
+
+updateUser(id: ID!, username: String, email: String) — Updates user profile in PostgreSQL.
+
+POST /notes, including Elasticsearch indexing and Kafka event).
+
+The Dashboard Query (Primary Test)
+The following query must execute correctly in GraphiQL and return all three data sources in a single
+round trip:
+
+query CollabNoteDashboard {
+me {
+username
+email
+notes {
+title
+tags
+createdAt
+}
+activityLogs {
+eventType
+timestamp
+}
+}
+}
+
+Authentication in GraphQL Context
+The Strawberry GraphQL router must read the Authorization: Bearer <token> header, decode the
+
+JWT, and make the authenticated user available in the resolver context. Queries that access userspecific data (me, notes, activityLogs) must return a 401 error if no valid token is present.
+
+Acceptance Criteria
+23. Opening /graphql in a browser renders the GraphiQL playground.
+24. The CollabNoteDashboard query above executes and returns coherent data from all three
+sources.
+
+25. Running createNote mutation creates a note visible in both GET /notes (REST) and the notes
+GraphQL query.
+
+26. Calling notes without an Authorization header returns an authentication error.
+
+Phase 5 — Production Deployment: Nginx + CI/CD
+Labs: 9 · 10
+Services added: Nginx · GitHub Actions
+Goal: The full stack runs behind a load balancer and deploys automatically.
+
+Nginx Load Balancer Requirements
+•
+
+Run two FastAPI containers (api1 and api2) on internal ports 8001 and 8002.
+
+•
+
+Nginx listens on port 80 and distributes traffic across both instances using round-robin.
+
+•
+
+nginx.conf must define an upstream block with max_fails=3 fail_timeout=30s on each
+
+•
+
+Each FastAPI instance must respond with an X-Instance-ID header so students can verify
+
+•
+
+Nginx must proxy /graphql requests to the same upstream pool.
+
+backend.
+
+round-robin distribution.
+
+GitHub Actions CI/CD Requirements
+The .github/workflows/ci.yml workflow must:
+27. Trigger on push to main and on all pull requests.
+28. Run flake8 linting (critical errors E9, F63, F7, F82; max line length 88).
+29. Run pytest with coverage; fail if coverage falls below 60%.
+30. Build a Docker image for the FastAPI application.
+31. Push the image to Docker Hub tagged as: latest and {branch}-{sha}.
+32. The build and push jobs must run only after the test job passes (needs: test).
+
+⚠️ The deploy job (SSH to VM and docker pull) is optional and will not be
+assessed for grading. Students who implement it receive bonus credit.
+
+Required GitHub Secrets
+Name
+
+Type
+
+Purpose
+
+DOCKERHUB_TOKEN
+
+Secret
+
+Docker Hub access token for image push
+
+DOCKERHUB_USERNAME
+
+Variable
+
+Docker Hub username for image tagging
+
+EC2_HOST
+
+Secret
+
+Optional: EC2 IP for bonus deploy job
+
+EC2_USERNAME
+
+Secret
+
+Optional: EC2 SSH username
+
+EC2_SSH_KEY
+
+Secret
+
+Optional: EC2 private key PEM content
+
+Acceptance Criteria
+33. docker compose up starts all services including two FastAPI instances and Nginx.
+34. Sending six consecutive curl requests to port 80 shows alternating X-Instance-ID values.
+35. Stopping one FastAPI instance and sending requests shows all traffic routes to the surviving
+instance.
+
+36. Pushing a commit to main triggers the GitHub Actions workflow; the test, build, and push jobs
+all pass.
+
+37. The built Docker image appears on Docker Hub tagged with both latest and the commit SHA.
+
+4. Final Submission Requirements
+4.1 Repository Structure
+The submitted GitHub repository must follow this structure:
+
+collabnote/
+├── app/
+│ ├── main.py
+
+# FastAPI app (REST + GraphQL)
+
+│ ├── database.py
+
+# PostgreSQL engine and session
+
+│ ├── mongodb.py
+
+# Motor async MongoDB client
+
+│ ├── redis_client.py
+
+# Redis connection and helpers
+
+│ ├── kafka_producer.py
+
+# aiokafka producer
+
+│ ├── elasticsearch.py
+
+# Elasticsearch client
+
+│ ├── graphql_schema.py
+
+# Strawberry schema
+
+│ ├── models.py
+
+# SQLAlchemy models
+
+│ ├── schemas.py
+
+# Pydantic schemas
+
+│ ├── auth.py
+
+# JWT + password hashing
+
+│ └── tests/
+│
+
+└── test_api.py
+
+├── consumer/
+│ ├── consumer.py
+
+# Kafka consumer process
+
+│ └── mongodb.py
+
+# Consumer MongoDB client
+
+├── nginx/
+│ └── nginx.conf
+├── alembic/
+├── .github/workflows/ci.yml
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+├── requirements-dev.txt
+├── alembic.ini
+├── requirements.md
+└── README.md
+
+# Phase 0 document
+
+4.2 README.md Must Include
+•
+
+Project description (2–3 sentences).
+
+•
+
+Prerequisites (Docker, Docker Compose, Python 3.11+).
+
+•
+
+Complete setup instructions: environment variables, vm.max_map_count, docker compose
+
+•
+
+A table of all REST endpoints with method, path, auth requirement, and brief description.
+
+•
+
+GraphQL endpoint URL and a sample dashboard query.
+
+•
+
+Architecture Decision Log — minimum three entries in the format: Context → Decision →
+
+up.
+
+Rationale.
+
+4.3 Environment Variables
+All secrets and configuration must be managed through environment variables. The repository must
+include a .env.example file listing every required variable with a placeholder value. A .env file must
+never be committed.
+
+Variable
+
+Example Value
+
+Used By
+
+DATABASE_URL
+
+postgresql+psycopg2://postgres:postgres@postgres:5432/collabnote
+
+SQLAlche
+
+MONGODB_URL
+
+mongodb://mongo:mongo@mongodb:27017
+
+Motor
+
+MONGODB_DB_NAME
+
+collabnote_db
+
+Motor
+
+SECRET_KEY
+
+openssl rand -hex 32
+
+JWT
+
+ALGORITHM
+
+HS256
+
+JWT
+
+ACCESS_TOKEN_EXPIRE_MINUTES
+
+30
+
+JWT
+
+REDIS_URL
+
+redis://redis:6379/0
+
+Redis client
+
+CACHE_TTL
+
+3600
+
+Redis
+
+ELASTICSEARCH_URL
+
+http://elasticsearch:9200
+
+ES client
+
+ELASTICSEARCH_INDEX
+
+notes
+
+ES client
+
+KAFKA_BOOTSTRAP_SERVERS
+
+kafka:9092
+
+aiokafka
+
+my
+
+signing
+
+KAFKA_TOPIC
+
+collabnote_events
+
+aiokafka
+
+4.4 Grading Rubric
+Phase
+
+Criteria
+
+Weight
+
+Phase 0
+
+Requirements doc is complete, accurate, and shows genuine
+
+10%
+
+10
+
+Phase 1
+
+Auth works end-to-end; hybrid endpoint queries both DBs
+
+20%
+
+20
+
+Phase 2
+
+Notes are indexed and searchable with fuzzy matching;
+
+20%
+
+20
+
+Phase 3
+
+All six event types are published and consumed; activity log
+
+20%
+
+20
+
+Phase 4
+
+Dashboard query executes correctly; GraphQL auth enforced;
+
+15%
+
+15
+
+Phase 5
+
+docker compose up starts full stack; round-robin verified;
+
+15%
+
+15
+
+Bonus
+
+EC2 deploy job; >80% test coverage; custom Elasticsearch
+
++10%
+
++10
+
+architectural reasoning
+
+correctly; 6+ tests pass
+
+cache hit/miss behaviour is correct
+
+endpoint returns correct history
+
+mutations sync with REST state
+
+CI/CD pipeline passes on GitHub
+
+analyzer; GraphQL subscriptions
+
+4.5 Submission Checklist
+Before submitting, verify every item below:
+•
+
+requirements.md is present and was approved by the instructor before coding began.
+
+•
+
+docker compose up from the repository root starts the entire stack without manual
+
+•
+
+.env.example documents every environment variable; .env is in .gitignore.
+
+•
+
+pytest runs and all tests pass (minimum 60% coverage).
+
+•
+
+GitHub Actions workflow shows a green checkmark on the latest commit to main.
+
+intervention.
+
+Max
+
+Marks
+
+•
+
+Docker Hub shows a pushed image tagged latest with the repository name.
+
+•
+
+GET /search?q=<term> returns ranked results from Elasticsearch with highlighted snippets.
+
+•
+
+GET /notes/{id} served twice shows a cache hit on the second request.
+
+•
+
+GET /activity returns a chronological log of actions performed during testing.
+
+•
+
+GET /graphql renders GraphiQL; the dashboard query executes without errors.
+
+•
+
+README.md contains setup instructions, endpoint table, and Architecture Decision Log.
+
+FastAPI Basics Capstone — CollabNote | Backend Engineering with Python | Poridhi.io
+
+

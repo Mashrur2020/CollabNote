@@ -51,11 +51,18 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     # Find user by username
     user = db.query(User).filter(User.username == form_data.username).first()
     
-    # Verify user exists and password is correct
+    # Verify user exists, is active, and password is correct
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=401,
             detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=401,
+            detail="Account is deactivated",
             headers={"WWW-Authenticate": "Bearer"},
         )
     

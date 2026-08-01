@@ -7,7 +7,7 @@ from aiokafka import AIOKafkaConsumer
 from motor.motor_asyncio import AsyncIOMotorClient
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-KAFKA_TOPIC = "colabnote_events"
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "colabnote_events")
 KAFKA_GROUP_ID = "colabnote_activity_consumer"
 
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")

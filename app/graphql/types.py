@@ -84,7 +84,7 @@ class Note:
 class ActivityLog:
     id: strawberry.ID
     event_type: str = strawberry.field(name="eventType")
-    user_id: str = strawberry.field(name="userId")
+    user_id: int = strawberry.field(name="userId")
     resource_id: Optional[str] = strawberry.field(name="resourceId", default=None)
     timestamp: str
     metadata: str
@@ -117,7 +117,7 @@ def _activity_from_doc(doc: dict) -> ActivityLog:
     return ActivityLog(
         id=strawberry.ID(str(doc["_id"])),
         event_type=doc.get("event_type", ""),
-        user_id=doc.get("user_email", doc.get("user_id", "")),
+        user_id=doc.get("user_id", 0),
         resource_id=doc.get("resource_id"),
         timestamp=str(doc.get("timestamp", "")),
         metadata=meta,

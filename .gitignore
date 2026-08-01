@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 .env
+.puku
 
 # IDE
 .vscode/
@@ -23,3 +24,4 @@ Thumbs.db
 htmlcov/
 .coverage
 node_modules/
+project.pdf

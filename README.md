@@ -184,7 +184,7 @@ python -m consumer.consumer
 | `ELASTICSEARCH_INDEX`          | `notes`                  | ES index name                                 |
 | `REDIS_HOST`                   | `localhost`              | Redis host                                    |
 | `REDIS_PORT`                   | `6379`                   | Redis port                                    |
-| `CACHE_TTL`                    | `300`                    | Default cache TTL in seconds                  |
+| `CACHE_TTL`                    | `3600`                   | Default cache TTL in seconds                  |
 | `KAFKA_BOOTSTRAP_SERVERS`      | `localhost:9092`         | Kafka bootstrap servers                       |
 | `ENVIRONMENT`                  | `development`            | Runtime environment                           |
 | `LOG_LEVEL`                    | `INFO`                   | Log level                                     |

@@ -4,6 +4,9 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal
@@ -59,6 +62,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+INSTANCE_ID = os.getenv("INSTANCE_ID", "unknown")
+
+
+class InstanceIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        response.headers["X-Instance-ID"] = INSTANCE_ID
+        return response
+
+
+app.add_middleware(InstanceIDMiddleware)
 
 # Include routers
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])

@@ -14,7 +14,7 @@ class UserCreate(BaseModel):
         json_schema_extra = {
             "example": {
                 "email": "alice@example.com",
-                "username": "alice",
+                "username": "alice123",
                 "password": "securepassword123"
             }
         }
@@ -31,7 +31,7 @@ class UserOut(BaseModel):
             "example": {
                 "id": 1,
                 "email": "alice@example.com",
-                "username": "alice"
+                "username": "alice123"
             }
         }
 
@@ -79,3 +79,23 @@ class NoteOut(BaseModel):
     tags: list[str] = []
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+
+# ─── Search Schemas ────────────────────────────────────────
+
+class SearchHit(BaseModel):
+    """A single search result with Elasticsearch metadata."""
+    id: str
+    title: str
+    content: str
+    user_email: str
+    tags: list[str] = []
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    score: Optional[float] = None
+    highlight: Optional[dict] = None
+
+
+class SearchResults(BaseModel):
+    total: int
+    results: list[SearchHit]
