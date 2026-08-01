@@ -12,7 +12,7 @@ from app.mongodb import async_db
 
 router = APIRouter(tags=["activity"])
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 def _user_id_from_email(email: str) -> int:
@@ -27,6 +27,8 @@ def get_current_user_email(
 ) -> str:
     """Decode bearer token and return the authenticated user's email."""
     try:
+        if credentials is None or credentials.credentials is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
         email = decode_access_token(credentials.credentials)
         if email is None:
             raise HTTPException(status_code=401, detail="Invalid token")

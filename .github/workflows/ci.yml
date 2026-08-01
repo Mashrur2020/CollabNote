@@ -61,7 +61,7 @@ jobs:
       - run: pip install -r requirements.txt pytest-cov
       - run: |
           pytest tests/ --cov=app --cov-report=term-missing \
-            --cov-fail-under=50
+            --cov-fail-under=60
         env:
           ES_URL: http://localhost:9200
           SKIP_ES_TESTS: "false"

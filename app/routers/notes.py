@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["notes"])
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 def _user_id_from_email(email: str) -> int:
@@ -44,9 +44,11 @@ def _parse_object_id(note_id: str) -> ObjectId:
 
 
 def get_current_user_email(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> str:
     """Decode the bearer token and return the user's email."""
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Invalid token")
     email = decode_access_token(credentials.credentials)
     if email is None:
         raise HTTPException(status_code=401, detail="Invalid token")
