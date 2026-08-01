@@ -11,7 +11,7 @@ load_dotenv()
 Base = declarative_base()
 
 # Get database URL from environment
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./colabnote.db")
 
 # Create engine - support both PostgreSQL and SQLite
 if DATABASE_URL.startswith("sqlite"):
